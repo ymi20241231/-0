@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>角色陪伴小舞台</title>
+<style>
+  :root {
+    --ink: #4a3a5c;
+    --soft: #8a7a99;
+    --accent: #7e5bb5;
+    --accent-ink: #ffffff;
+    --card: rgba(255, 255, 255, 0.65);
+    --line: #d9c9ee;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 16px 28px;
+    background: linear-gradient(180deg, #fff8ea 0%, #f9ecd7 55%, #f3dfc4 100%);
+    color: var(--ink);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", "Heiti TC", system-ui, sans-serif;
+    font-size: 20px;
+  }
+  h1 {
+    margin: 4px 0 0;
+    font-size: clamp(40px, 9vw, 60px);
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    text-align: center;
+  }
+
+  /* 舞台 */
+  .stage {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    flex: 1 1 auto;
+    min-height: 380px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+  .pet {
+    appearance: none;
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0 0 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    display: block;
+    max-width: 100%;
+  }
+  .pet:focus-visible { outline: 3px solid var(--accent); outline-offset: 6px; border-radius: 12px; }
+  .pet img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 240px;
+    background: none;
+    border: 0;
+  }
+  .pet.jump { animation: jump 0.5s ease-out; }
+  @keyframes jump {
+    0%   { transform: translateY(0); }
+    40%  { transform: translateY(-34px); }
+    100% { transform: translateY(0); }
+  }
+  .missing {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(88%, 340px);
+    text-align: center;
+    line-height: 1.6;
+    font-size: 20px;
+  }
+  .bubble {
+    position: absolute;
+    left: 50%;
+    top: 14px;
+    transform: translateX(-50%);
+    max-width: 92%;
+    padding: 10px 18px;
+    background: #fff;
+    border: 2px solid var(--line);
+    border-radius: 20px;
+    font-size: 22px;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .bubble.show { opacity: 1; }
+  .food {
+    position: absolute;
+    left: calc(50% + 100px);
+    top: 0;
+    font-size: 48px;
+    line-height: 1;
+    pointer-events: none;
+    animation: fall 0.8s ease-in forwards;
+  }
+  @keyframes fall {
+    from { top: 0; opacity: 1; }
+    80%  { opacity: 1; }
+    to   { top: calc(100% - 140px); opacity: 0; }
+  }
+  .heart {
+    position: absolute;
+    bottom: 150px;
+    font-size: 32px;
+    line-height: 1;
+    pointer-events: none;
+    animation: rise 1.4s ease-out forwards;
+  }
+  @keyframes rise {
+    from { transform: translateY(0) scale(0.8); opacity: 1; }
+    to   { transform: translateY(-120px) scale(1.2); opacity: 0; }
+  }
+
+  /* 按鈕 */
+  .actions { display: flex; gap: 14px; margin: 14px 0 22px; width: 100%; max-width: 480px; }
+  button.btn {
+    flex: 1;
+    min-height: 60px;
+    padding: 10px 16px;
+    font: inherit;
+    font-weight: 700;
+    color: var(--accent-ink);
+    background: var(--accent);
+    border: 0;
+    border-radius: 18px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button.btn:active { transform: scale(0.97); }
+  button.btn.ghost { background: transparent; color: var(--accent); border: 2px solid var(--accent); }
+  button.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+  button.btn:disabled { opacity: 0.55; cursor: default; }
+
+  /* 喝水 */
+  .water {
+    width: 100%;
+    max-width: 480px;
+    padding: 18px;
+    background: var(--card);
+    border: 2px solid var(--line);
+    border-radius: 24px;
+  }
+  .water h2 { margin: 0 0 6px; font-size: 22px; }
+  .count { margin: 0 0 14px; font-size: 30px; font-weight: 700; }
+  .goal { display: flex; align-items: center; gap: 10px; margin-top: 16px; color: var(--soft); }
+  .goal select {
+    font: inherit;
+    padding: 8px 12px;
+    min-height: 48px;
+    color: var(--ink);
+    background: #fff;
+    border: 2px solid var(--line);
+    border-radius: 12px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pet.jump { animation: none; }
+    .food, .heart { animation-duration: 0.01s; }
+  }
+</style>
+</head>
+<body>
+
+<h1 id="name"></h1>
+
+<div class="stage" id="stage">
+  <div class="bubble" id="bubble" role="status" aria-live="polite"></div>
+  <button class="pet" id="pet" type="button" aria-label="摸摸">
+    <img id="img" alt="角色" draggable="false">
+  </button>
+  <div class="missing" id="missing" hidden>找不到 idle.gif，請確認它和網頁檔放在同一個資料夾，檔名全部小寫</div>
+</div>
+
+<div class="actions">
+  <button class="btn" id="feedBtn" type="button">餵食</button>
+  <button class="btn" id="petBtn" type="button">摸摸</button>
+</div>
+
+<section class="water" aria-labelledby="waterTitle">
+  <h2 id="waterTitle">今天的喝水紀錄</h2>
+  <p class="count" id="count"></p>
+  <div class="actions" style="margin:0">
+    <button class="btn" id="drinkBtn" type="button">喝了一杯</button>
+    <button class="btn ghost" id="resetBtn" type="button">歸零</button>
+  </div>
+  <label class="goal">目標
+    <select id="goal"></select>
+    杯
+  </label>
+</section>
+
+<script>
+/* ====== 可調整設定 ====== */
+const CHARACTER_NAME = "小狐";   // 角色名字，改這裡
+const ACTION_SECONDS = 3.2;      // 動作播放時間（秒）：16 格 × 0.2 秒；依實際 GIF 長度調整
+/* ======================== */
+
+const $ = id => document.getElementById(id);
+const stage = $("stage"), pet = $("pet"), img = $("img"), bubble = $("bubble");
+const feedBtn = $("feedBtn"), petBtn = $("petBtn");
+
+$("name").textContent = CHARACTER_NAME;
+document.title = CHARACTER_NAME + " 的陪伴小舞台";
+
+/* ---------- 圖片 ---------- */
+const has = { idle: false, eat: false, happy: false };
+const checkImage = name => new Promise(res => {
+  const t = new Image();
+  t.onload = () => res(true);
+  t.onerror = () => res(false);
+  t.src = name + ".gif";
+});
+
+function showIdle() {
+  if (!has.idle) return;
+  img.src = "idle.gif";
+}
+function play(name) {
+  // 加上時間參數，讓 GIF 每次都從頭播放；檔案不存在就用 idle
+  if (!has[name]) { showIdle(); return; }
+  img.src = name + ".gif?t=" + Date.now();
+}
+function noIdle() {
+  has.idle = false;
+  pet.hidden = true;
+  $("missing").hidden = false;
+}
+img.addEventListener("error", () => {
+  // 動作圖載入失敗時退回 idle；idle 也失敗就顯示提示
+  if (img.src.includes("idle.gif")) noIdle();
+  else { has.eat = has.eat && !img.src.includes("eat.gif"); has.happy = has.happy && !img.src.includes("happy.gif"); showIdle(); }
+});
+
+Promise.all(["idle", "eat", "happy"].map(checkImage)).then(([i, e, h]) => {
+  has.idle = i; has.eat = e; has.happy = h;
+  if (i) showIdle(); else noIdle();
+});
+
+/* ---------- 動作（同時只播一個，播完才接受下一個） ---------- */
+let busy = false;
+function runAction(gifName, text, extra) {
+  if (busy || !has.idle) return;
+  busy = true;
+  feedBtn.disabled = petBtn.disabled = true;
+  play(gifName);
+  bubble.textContent = text;
+  bubble.classList.add("show");
+  if (extra) extra();
+  setTimeout(() => {
+    showIdle();
+    bubble.classList.remove("show");
+    busy = false;
+    feedBtn.disabled = petBtn.disabled = false;
+  }, ACTION_SECONDS * 1000);
+}
+
+/* 餵食 */
+const FOODS = ["🍎", "🍓", "🍪", "🍙", "🥕", "🍰"];
+function feed() {
+  runAction("eat", "好好吃！", () => {
+    const f = document.createElement("div");
+    f.className = "food";
+    f.textContent = FOODS[Math.floor(Math.random() * FOODS.length)];
+    stage.appendChild(f);
+    const remove = () => f.remove();
+    f.addEventListener("animationend", remove);
+    setTimeout(remove, 1500); // 保險：一定會清掉
+  });
+}
+
+/* 摸摸 */
+const LINES = ["嗨，今天也一起加油！", "我在這裡陪你～", "再摸一下嘛！"];
+let lineIdx = 0;
+function touch() {
+  const text = LINES[lineIdx];
+  lineIdx = (lineIdx + 1) % LINES.length;
+  runAction("happy", text, () => {
+    pet.classList.remove("jump");
+    void pet.offsetWidth;
+    pet.classList.add("jump");
+    setTimeout(() => pet.classList.remove("jump"), 600);
+    for (let k = 0; k < 4; k++) {
+      const h = document.createElement("div");
+      h.className = "heart";
+      h.textContent = "💗";
+      h.style.left = (50 + (Math.random() * 40 - 20)) + "%";
+      h.style.animationDelay = (k * 0.15) + "s";
+      stage.appendChild(h);
+      const remove = () => h.remove();
+      h.addEventListener("animationend", remove);
+      setTimeout(remove, 2500);
+    }
+  });
+}
+
+feedBtn.addEventListener("click", feed);
+petBtn.addEventListener("click", touch);
+pet.addEventListener("click", touch);
+
+/* ---------- 喝水紀錄 ---------- */
+const KEY_WATER = "companion.water", KEY_GOAL = "companion.goal";
+const pad = n => String(n).padStart(2, "0");
+const today = () => { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
+
+let water = { date: today(), count: 0 };
+let goal = 8;
+try {
+  const w = JSON.parse(localStorage.getItem(KEY_WATER));
+  if (w && typeof w.count === "number") water = w;
+  const g = parseInt(localStorage.getItem(KEY_GOAL), 10);
+  if (g >= 4 && g <= 12) goal = g;
+} catch (e) {}
+
+function saveWater() {
+  try { localStorage.setItem(KEY_WATER, JSON.stringify(water)); } catch (e) {}
+}
+function rollover() {
+  if (water.date !== today()) { water = { date: today(), count: 0 }; saveWater(); }
+}
+function renderWater() {
+  rollover();
+  $("count").textContent = "今天喝了 " + water.count + " / " + goal + " 杯";
+}
+
+const sel = $("goal");
+for (let n = 4; n <= 12; n++) {
+  const o = document.createElement("option");
+  o.value = n; o.textContent = n;
+  sel.appendChild(o);
+}
+sel.value = goal;
+sel.addEventListener("change", () => {
+  goal = parseInt(sel.value, 10);
+  try { localStorage.setItem(KEY_GOAL, String(goal)); } catch (e) {}
+  renderWater();
+});
+$("drinkBtn").addEventListener("click", () => { rollover(); water.count++; saveWater(); renderWater(); });
+$("resetBtn").addEventListener("click", () => { water = { date: today(), count: 0 }; saveWater(); renderWater(); });
+
+document.addEventListener("visibilitychange", renderWater);
+setInterval(renderWater, 60000);
+renderWater();
+</script>
+</body>
+</html>
